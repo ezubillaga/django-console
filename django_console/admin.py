@@ -1,9 +1,13 @@
-from django.conf.urls import patterns
+from django.conf.urls import url
 from django.contrib import admin
-from django.core.context_processors import csrf
+# from django.core.context_processors import csrf
+
+from django.views.decorators.csrf import csrf_protect
 from django.http import HttpResponse
-from django.shortcuts import render_to_response
+from django.shortcuts import render
+from django.template import RequestContext
 from django.conf import settings
+
 import subprocess
 
 
@@ -16,6 +20,7 @@ def get_client_ip(request):
     return ip
 
 
+@csrf_protect
 def console(request):
     """
     Serves the console at /admin/console
@@ -42,15 +47,20 @@ def console(request):
         v2 = True
     settings_variables = v1 and v2
     if request.user.is_superuser and settings_variables:
-        context = {
-            'STATIC_URL': settings.STATIC_URL
-        }
-        context.update(csrf(request))
-        return render_to_response("django-console/admin/index.html", context)
+
+        context = RequestContext(request, {
+            'STATIC_URL': settings.STATIC_URL,
+        })
+
+        print(context)
+
+        # context.update(csrf(request))
+        return render(request, "django-console/admin/index.html", context=context.flatten())
     else:
         return HttpResponse("Unauthorized.", status=403)
 
 
+@csrf_protect
 def console_post(request):
     """
     Accepts POST requests from the web console, processes it and returns the result.
@@ -70,18 +80,19 @@ def console_post(request):
     return HttpResponse("Unauthorized.", status=403)
 
 
-def get_admin_urls(urls):
-    """
-    Appends the console and post urls to the url patterns
-    """
-    def get_urls():
-        my_urls = patterns('',
-                           (r'^console/$', admin.site.admin_view(console)),
-                           (r'^console/post/$', admin.site.admin_view(console_post)))
-        return my_urls + urls
-
-    return get_urls
-
-
-admin_urls = get_admin_urls(admin.site.get_urls())
-admin.site.get_urls = admin_urls
+# def get_admin_urls(urls):
+#     """
+#     Appends the console and post urls to the url patterns
+#     """
+#     def get_urls():
+#         my_urls = [
+#             url(r'^console/$', admin.site.admin_view(console)),
+#             url(r'^console/post/$', admin.site.admin_view(console_post)),
+#         ]
+#         return my_urls + urls
+#
+#     return get_urls
+#
+#
+# admin_urls = get_admin_urls(admin.site.get_urls())
+# admin.site.get_urls = admin_urls
